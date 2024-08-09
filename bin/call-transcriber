@@ -1,0 +1,95 @@
+#!python3
+import click
+
+import os
+import sys
+import torch
+import logging
+import whisper
+import argparse
+import torchaudio
+
+class LoggingFormatter(logging.Formatter):
+	def format(self, record):
+		module_max_width = 30
+		datefmt='%Y/%m/%d/ %H:%M:%S'
+		level = f'[{record.levelname}]'.ljust(9)
+		if 'log_module' not in dir(record) :
+			modname = str(record.module)+'.'+str(record.name)
+		else :
+			modname = record.log_module
+		modname = (f'{modname}'[:module_max_width-1] + ']').ljust(module_max_width)
+		final = "%-7s %s [%s %s" % (self.formatTime(record, self.datefmt), level, modname, record.getMessage())
+		return final
+
+def transcribe_channel(model, audio, channel_idx, sample_rate, language="en"):
+    # Extract the desired channel (left=0, right=1)
+    channel_audio = audio[channel_idx, :]
+    # Save the channel audio to a temporary file
+    temp_filename = f"temp_channel_{channel_idx}.wav"
+    torchaudio.save(temp_filename, channel_audio.unsqueeze(0), sample_rate)
+    transcription = model.transcribe(temp_filename, language=language)
+    os.remove(temp_filename)  # Clean up the temporary file
+    return transcription['segments']
+
+def merge_transcriptions(left_transcription, right_transcription):
+    merged = []
+    left_idx, right_idx = 0, 0
+    while left_idx < len(left_transcription) and right_idx < len(right_transcription):
+        left_start = left_transcription[left_idx]['start']
+        right_start = right_transcription[right_idx]['start']
+
+        if left_start <= right_start:
+            merged.append(f"{left_transcription[left_idx]['start']:.2f} --> Left: {left_transcription[left_idx]['text']}")
+            left_idx += 1
+        else:
+            merged.append(f"{right_transcription[right_idx]['start']:.2f} --> Right: {right_transcription[right_idx]['text']}")
+            right_idx += 1
+
+    # Append any remaining parts
+    while left_idx < len(left_transcription):
+        merged.append(f"{left_transcription[left_idx]['start']:.2f} --> Left: {left_transcription[left_idx]['text']}")
+        left_idx += 1
+
+    while right_idx < len(right_transcription):
+        merged.append(f"{right_transcription[right_idx]['start']:.2f} --> Right: {right_transcription[right_idx]['text']}")
+        right_idx += 1
+
+    return "\n".join(merged)
+
+@click.command()
+@click.argument('audio_file', type=click.Path(exists=True))
+@click.option('--output_file', type=click.Path(), default=None, help='Destination of the transcription file.')
+def transcribe_audio(audio_file, output_file):
+    # Load the Whisper model
+    model = whisper.load_model("base")
+
+    # Initialize ffmpeg backend for transcoding waveforms
+    torchaudio.utils.ffmpeg_utils.get_audio_decoders()
+    # Load the audio file
+    waveform, sample_rate = torchaudio.load(audio_file,format='aac')
+    if waveform.size(0) != 2:
+        raise ValueError("Audio file must have exactly 2 channels (stereo).")
+
+    # Transcribe each channel
+    left_transcription = transcribe_channel(model, waveform, 0, sample_rate)
+    right_transcription = transcribe_channel(model, waveform, 1, sample_rate)
+
+    # Merge the transcriptions
+    merged_transcription = merge_transcriptions(left_transcription, right_transcription)
+
+    # Prepare output file name
+    if output_file is None:
+        output_file = os.path.splitext(audio_file)[0] + '.lrc'
+
+    # Write to the output file
+    with open(output_file, 'w') as f:
+        f.write(merged_transcription)
+
+    click.echo(f"Transcription saved to {output_file}")
+
+if __name__ == '__main__':
+
+	# Main functions
+	print('Hello World!')
+	transcribe_audio()

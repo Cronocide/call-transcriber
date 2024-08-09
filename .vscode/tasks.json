@@ -8,6 +8,12 @@
 			"args": ["qualtrics","${workspaceFolderBasename}"]
 		},
 		{
+			"label": "install_package",
+			"type": "shell",
+			"command": ".vscode/install.sh",
+			"args": ["qualtrics","${workspaceFolderBasename}"]
+		},
+		{
 			"label": "destroy_envfile",
 			"type": "shell",
 			"command": "rm",

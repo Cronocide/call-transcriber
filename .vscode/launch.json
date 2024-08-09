@@ -6,9 +6,12 @@
 			"type": "python",
 			"request": "launch",
 			"program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
+			"args": [
+				"/Users/cronocide/Desktop/Tel-To-Sarah_Dayley-2023-09-05-18-16-30.m4a"
+			],
 			"console": "integratedTerminal",
 			"justMyCode": true,
-			"preLaunchTask": "make_envfile",
+			"preLaunchTask": "install_package",
 			"postDebugTask": "destroy_envfile"
 		},
 		{

@@ -16,7 +16,7 @@ pipeline {
 	}
 	environment {
 		WORKSPACE_PATH = "/opt/nomad/alloc/${NOMAD_ALLOC_ID}/${NOMAD_TASK_NAME}${WORKSPACE}"
-		DESCRIPTION = "Another amazing piece of software written by Cronocide."
+		DESCRIPTION = "Transcribe calls from CallRecorderX"
 	}
 	stages {
 		stage('Prepare') {
